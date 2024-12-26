@@ -1,0 +1,32 @@
+# 데이터셋
+task: CNN_hug
+
+data_files:
+  # 데이터 파일 경로 입력
+
+encoder_model: bert-base-uncased
+decoder_model: gpt
+
+batch_size: 32
+logging_steps: 500
+save_steps: 500
+eval_steps: 2500
+warmup_steps: 200
+
+encoder_max_length: 512
+decoder_max_length: 128
+
+num_beams: 7
+
+# 초기화
+random_seed: 54321
+
+optimizer: adam
+optimizer_params:
+  adam:
+    lr: 5.0e-5
+    #betas: [0.7, 0.999]
+    #weight_decay: 1.0e-7
+
+# 트레이닝 프로세스
+max_epochs: 3.0
