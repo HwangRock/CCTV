@@ -33,20 +33,18 @@ def main():
     tokenizer.eos_token = tokenizer.sep_token
 
     # 데이터 로드
-    if params['task'] == "CNN_hug": # huggingface datasets로 부터 cnn_dailymail load
-        train_data = datasets.load_dataset("cnn_dailymail", "3.0.0", split="train")
-        val_data = datasets.load_dataset("cnn_dailymail", "3.0.0", split="validation[:10%]")
-    elif params['task'] == "CNN": # custom dataset을 laod
-        data_params = params['data_files'][params['task']]
+    # 데이터 로드
+    if params['task'] == "C4":  # C4 데이터셋 로드
+        train_data = datasets.load_dataset("c4", "en", split="train")
+        val_data = datasets.load_dataset("c4", "en", split="validation[:10%]")
 
-        data_files = {}
-        data_files["train"] = data_params['raw_file'] # custom json file 경로를 train dataset 경로로 지정
-        extension = data_params['raw_file'].split(".")[-1] # load_dataset 함수에 file 형태를 알려주기 위한 확장자 split 
-        train_data = datasets.load_dataset(extension, data_files=data_files, split="train[:5%]") # 전체 데이터의 5%만 train dataset으로 사용
-        val_data = datasets.load_dataset(extension, data_files=data_files, split="train[99%:]") # 전체 데이터의 1%만 validation dataset으로 사용
+    elif params['task'] == "The_Pile":  # The Pile 데이터셋 로드
+        train_data = datasets.load_dataset("the_pile", split="train")
+        val_data = datasets.load_dataset("the_pile", split="validation[:10%]")
 
-    elif params['task'] == "BBC":
-        pass
+    elif params['task'] == "WikiText-103":  # WikiText-103 데이터셋 로드
+        train_data = datasets.load_dataset("wikitext", "103", split="train")
+        val_data = datasets.load_dataset("wikitext", "103", split="validation[:10%]")
 
     def process_data_to_model_inputs(batch):
         # tokenize the inputs and labels (highlights)
@@ -65,54 +63,77 @@ def main():
         #                    batch["labels"]] # PAD를 무시하도록 -100 할당
         return batch
 
-    if params['task'] == "CNN_hug":
-        train_data = train_data.map( #map을 통해 각각의 batch에 process_data_to_model_inputs 함수 적용
-            process_data_to_model_inputs,
-            batched=True,
-            batch_size=params['batch_size'],
-            remove_columns=["article", "highlights", "id"] # model inputs 형태로 바꾼 뒤에는 article, highlights, id 삭제
-        )
-        train_data.set_format(
-            type="torch",
-            columns=["input_ids", "attention_mask", "decoder_input_ids", "decoder_attention_mask", "labels"], # 5개 columns만 사용
-        )
-
-        val_data = val_data.map(
-            process_data_to_model_inputs,
-            batched=True,
-            batch_size=params['batch_size'],
-            remove_columns=["article", "highlights", "id"]
-        )
-        val_data.set_format(
-            type="torch",
-            columns=["input_ids", "attention_mask", "decoder_input_ids", "decoder_attention_mask", "labels"],
-        )
-
-    elif params['task'] == "CNN":
+    if params['task'] == "C4":
+        # C4 데이터셋 처리
         train_data = train_data.map(
             process_data_to_model_inputs,
             batched=True,
             batch_size=params['batch_size'],
-            remove_columns=["article", "highlights", "id"]
+            remove_columns=["text"]  # C4는 'text' 컬럼이 주요 텍스트 데이터임
         )
         train_data.set_format(
             type="torch",
-            columns=["input_ids", "attention_mask", "decoder_input_ids", "decoder_attention_mask", "labels"],
+            columns=["input_ids", "attention_mask", "labels"],  # 필요한 컬럼만 사용
         )
 
         val_data = val_data.map(
             process_data_to_model_inputs,
             batched=True,
             batch_size=params['batch_size'],
-            remove_columns=["article", "highlights", "id"]
+            remove_columns=["text"]
         )
         val_data.set_format(
             type="torch",
-            columns=["input_ids", "attention_mask", "decoder_input_ids", "decoder_attention_mask", "labels"],
+            columns=["input_ids", "attention_mask", "labels"],
         )
 
-    elif params['task'] == "BBC":
-        pass
+    elif params['task'] == "The_Pile":
+        # The Pile 데이터셋 처리
+        train_data = train_data.map(
+            process_data_to_model_inputs,
+            batched=True,
+            batch_size=params['batch_size'],
+            remove_columns=["text"]  # The Pile도 'text' 컬럼에 텍스트 데이터가 있음
+        )
+        train_data.set_format(
+            type="torch",
+            columns=["input_ids", "attention_mask", "labels"],
+        )
+
+        val_data = val_data.map(
+            process_data_to_model_inputs,
+            batched=True,
+            batch_size=params['batch_size'],
+            remove_columns=["text"]
+        )
+        val_data.set_format(
+            type="torch",
+            columns=["input_ids", "attention_mask", "labels"],
+        )
+
+    elif params['task'] == "WikiText-103":
+        # WikiText-103 데이터셋 처리
+        train_data = train_data.map(
+            process_data_to_model_inputs,
+            batched=True,
+            batch_size=params['batch_size'],
+            remove_columns=["text"]  # WikiText-103도 'text' 컬럼 사용
+        )
+        train_data.set_format(
+            type="torch",
+            columns=["input_ids", "attention_mask", "labels"],
+        )
+
+        val_data = val_data.map(
+            process_data_to_model_inputs,
+            batched=True,
+            batch_size=params['batch_size'],
+            remove_columns=["text"]
+        )
+        val_data.set_format(
+            type="torch",
+            columns=["input_ids", "attention_mask", "labels"],
+        )
 
     model = EncoderDecoderModel.from_encoder_decoder_pretrained(params['encoder_model'], params['decoder_model'])
     # set special tokens
